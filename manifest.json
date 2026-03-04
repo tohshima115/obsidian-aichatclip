@@ -1,0 +1,9 @@
+{
+	"id": "aichatclip",
+	"name": "AIChatClip",
+	"version": "0.0.0",
+	"minAppVersion": "1.0.0",
+	"description": "Sync AI chat clips to your Obsidian vault",
+	"author": "AIChatClip",
+	"isDesktopOnly": false
+}
