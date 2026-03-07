@@ -1,4 +1,5 @@
 export const API_BASE_URL = "https://api.aichatclip.com";
+export const WEB_URL = "https://aichatclip.com";
 
 export const CLIP_SOURCES = ["chatgpt", "gemini", "claude"] as const;
 export type ClipSource = (typeof CLIP_SOURCES)[number];

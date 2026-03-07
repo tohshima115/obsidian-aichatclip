@@ -1,5 +1,6 @@
 import { type App, PluginSettingTab, Setting } from "obsidian";
 import type AIChatClipPlugin from "./main";
+import { WEB_URL } from "./types";
 
 export class AIChatClipSettingTab extends PluginSettingTab {
 	plugin: AIChatClipPlugin;
@@ -26,27 +27,24 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		new Setting(containerEl)
-			.setName("Session Token")
-			.setDesc("Bearer token for API authentication")
-			.addText((text) =>
-				text
-					.setPlaceholder("Enter your session token")
-					.setValue(this.plugin.settings.token)
-					.onChange(async (value) => {
-						this.plugin.settings.token = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Sign in with Google")
-			.setDesc("Open browser to sign in and get your session token")
-			.addButton((button) =>
-				button.setButtonText("Sign in").onClick(() => {
-					window.open(`${this.plugin.settings.apiBaseUrl}/api/auth/signin/google`);
+		const authSetting = new Setting(containerEl).setName("Authentication");
+		if (this.plugin.settings.token) {
+			authSetting.setDesc("Connected");
+			authSetting.addButton((button) =>
+				button.setButtonText("Sign out").onClick(async () => {
+					this.plugin.settings.token = "";
+					await this.plugin.saveSettings();
+					this.display();
 				}),
 			);
+		} else {
+			authSetting.setDesc("Not connected. Sign in to sync your clips.");
+			authSetting.addButton((button) =>
+				button.setButtonText("Sign in").setCta().onClick(() => {
+					window.open(`${WEB_URL}/auth/obsidian`);
+				}),
+			);
+		}
 
 		new Setting(containerEl)
 			.setName("Inbox Folder")

@@ -7,6 +7,7 @@ export default class AIChatClipPlugin extends Plugin {
 	settings: AIChatClipSettings = DEFAULT_SETTINGS;
 	private isSyncing = false;
 	private syncIntervalId: number | null = null;
+	private settingTab: AIChatClipSettingTab | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -19,7 +20,14 @@ export default class AIChatClipPlugin extends Plugin {
 			callback: () => this.performSync(),
 		});
 
-		this.addSettingTab(new AIChatClipSettingTab(this.app, this));
+		this.settingTab = new AIChatClipSettingTab(this.app, this);
+		this.addSettingTab(this.settingTab);
+
+		this.registerObsidianProtocolHandler("aichatclip", (params) => {
+			if (params.token) {
+				this.handleAuthCallback(params.token);
+			}
+		});
 
 		this.app.workspace.onLayoutReady(() => {
 			if (this.settings.autoSyncOnLoad && this.settings.token) {
@@ -75,6 +83,17 @@ export default class AIChatClipPlugin extends Plugin {
 		} finally {
 			this.isSyncing = false;
 		}
+	}
+
+	private async handleAuthCallback(token: string): Promise<void> {
+		this.settings.token = token;
+		await this.saveSettings();
+		// Delay to ensure Obsidian has regained focus before showing UI updates
+		setTimeout(() => {
+			this.settingTab?.display();
+			new Notice("AIChatClip: Connected successfully!");
+			this.performSync();
+		}, 500);
 	}
 
 	startSyncInterval(): void {
