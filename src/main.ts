@@ -1,7 +1,8 @@
-import { addIcon, Notice, Plugin } from "obsidian";
+import { addIcon, Notice, Platform, Plugin } from "obsidian";
 import { AIChatClipSettingTab } from "./settings";
-import { syncClips } from "./sync";
+import { syncClips, syncSingleClip } from "./sync";
 import { type AIChatClipSettings, DEFAULT_SETTINGS } from "./types";
+import { SyncWebSocket } from "./websocket";
 
 const LOGO_ICON = `<g transform="scale(4.1667)" fill="currentColor">
   <circle cx="13" cy="10.27" r="2"/>
@@ -14,9 +15,17 @@ export default class AIChatClipPlugin extends Plugin {
 	private isSyncing = false;
 	private syncIntervalId: number | null = null;
 	private settingTab: AIChatClipSettingTab | null = null;
+	syncWs: SyncWebSocket | null = null;
+	wsConnected = false;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+
+		// Generate deviceId on first load
+		if (!this.settings.deviceId) {
+			this.settings.deviceId = crypto.randomUUID();
+			await this.saveSettings();
+		}
 
 		addIcon("aichatclip-logo", LOGO_ICON);
 		this.addRibbonIcon("aichatclip-logo", "Sync AIChatClip", () => this.performSync());
@@ -36,15 +45,24 @@ export default class AIChatClipPlugin extends Plugin {
 			}
 		});
 
-		this.app.workspace.onLayoutReady(() => {
-			if (this.settings.autoSyncOnLoad && this.settings.token) {
-				this.performSync();
+		this.app.workspace.onLayoutReady(async () => {
+			if (this.settings.token) {
+				await this.registerDevice();
+
+				if (this.settings.autoSyncOnLoad) {
+					this.performSync();
+				}
+
+				if (Platform.isDesktop) {
+					this.connectWebSocket();
+				}
 			}
 			this.startSyncInterval();
 		});
 	}
 
 	onunload(): void {
+		this.syncWs?.disconnect();
 		this.stopSyncInterval();
 	}
 
@@ -96,11 +114,73 @@ export default class AIChatClipPlugin extends Plugin {
 		this.settings.token = token;
 		await this.saveSettings();
 		// Delay to ensure Obsidian has regained focus before showing UI updates
-		setTimeout(() => {
+		setTimeout(async () => {
+			await this.registerDevice();
 			this.settingTab?.display();
 			new Notice("AIChatClip: Connected successfully!");
 			this.performSync();
+
+			if (Platform.isDesktop) {
+				this.connectWebSocket();
+			}
 		}, 500);
+	}
+
+	private async registerDevice(): Promise<void> {
+		if (!this.settings.token || !this.settings.deviceId) return;
+		try {
+			const { requestUrl } = await import("obsidian");
+			await requestUrl({
+				url: `${this.settings.apiBaseUrl}/api/devices`,
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${this.settings.token}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					deviceId: this.settings.deviceId,
+					deviceName: Platform.isDesktop ? "Obsidian Desktop" : "Obsidian Mobile",
+				}),
+			});
+		} catch (e) {
+			console.warn("AIChatClip: device registration failed", e);
+		}
+	}
+
+	connectWebSocket(): void {
+		this.syncWs?.disconnect();
+
+		if (!this.settings.token || !this.settings.deviceId) return;
+
+		this.syncWs = new SyncWebSocket({
+			apiBaseUrl: this.settings.apiBaseUrl,
+			token: this.settings.token,
+			deviceId: this.settings.deviceId,
+			onNewClip: (clipId) => this.handlePushNotification(clipId),
+			onStatusChange: (connected) => {
+				this.wsConnected = connected;
+				this.settingTab?.display();
+			},
+		});
+		this.syncWs.connect();
+	}
+
+	private async handlePushNotification(clipId: string): Promise<void> {
+		if (this.settings.syncedClipIds.includes(clipId)) return;
+
+		try {
+			const synced = await syncSingleClip(
+				this.app,
+				this.settings,
+				clipId,
+				() => this.saveSettings(),
+			);
+			if (synced) {
+				new Notice("AIChatClip: New clip synced");
+			}
+		} catch (e) {
+			console.error("AIChatClip: push sync failed", e);
+		}
 	}
 
 	startSyncInterval(): void {

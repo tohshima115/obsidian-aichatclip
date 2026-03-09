@@ -35,6 +35,8 @@ export interface AIChatClipSettings {
 	timezone: string;
 	fileNameTemplate: string;
 	tagRulePath: string;
+	deviceId: string;
+	syncedClipIds: string[];
 }
 
 export const DEFAULT_SETTINGS: AIChatClipSettings = {
@@ -49,4 +51,6 @@ export const DEFAULT_SETTINGS: AIChatClipSettings = {
 	timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 	fileNameTemplate: "{yyyy}-{MM}-{dd}-{title}",
 	tagRulePath: "TagRule",
+	deviceId: "",
+	syncedClipIds: [],
 };

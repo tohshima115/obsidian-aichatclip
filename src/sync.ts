@@ -3,6 +3,8 @@ import { scanFolders, syncFoldersToApi } from "./folders";
 import { formatClipToMarkdown, formatLocalDate } from "./formatter";
 import type { AIChatClipSettings, Clip, UserPlan } from "./types";
 
+const SYNCED_CLIP_IDS_MAX = 1000;
+
 export interface SyncResult {
 	synced: number;
 	failed: number;
@@ -192,9 +194,11 @@ export async function syncClips(app: App, settings: AIChatClipSettings): Promise
 
 	const existingIds = await getExistingSyncedClipIds(app, settings.inboxFolder);
 
+	const syncedSet = new Set(settings.syncedClipIds);
+
 	for (const clip of clips) {
 		try {
-			if (existingIds.has(clip.id)) {
+			if (existingIds.has(clip.id) || syncedSet.has(clip.id)) {
 				await markClipSynced(settings, clip.id);
 				result.synced++;
 				continue;
@@ -224,4 +228,69 @@ export async function syncClips(app: App, settings: AIChatClipSettings): Promise
 	}
 
 	return result;
+}
+
+async function fetchClipById(settings: AIChatClipSettings, clipId: string): Promise<Clip> {
+	const res = await requestUrl({
+		url: `${settings.apiBaseUrl}/api/clips/${clipId}`,
+		method: "GET",
+		headers: { Authorization: `Bearer ${settings.token}` },
+	});
+
+	if (res.status !== 200) {
+		throw new Error(`Failed to fetch clip ${clipId}: ${res.status}`);
+	}
+
+	return res.json as Clip;
+}
+
+function addSyncedClipId(settings: AIChatClipSettings, clipId: string): void {
+	if (settings.syncedClipIds.includes(clipId)) return;
+	settings.syncedClipIds.push(clipId);
+	if (settings.syncedClipIds.length > SYNCED_CLIP_IDS_MAX) {
+		settings.syncedClipIds = settings.syncedClipIds.slice(-SYNCED_CLIP_IDS_MAX);
+	}
+}
+
+export async function syncSingleClip(
+	app: App,
+	settings: AIChatClipSettings,
+	clipId: string,
+	saveSettings: () => Promise<void>,
+): Promise<boolean> {
+	// Idempotency: skip if already synced
+	if (settings.syncedClipIds.includes(clipId)) return false;
+
+	const existingIds = await getExistingSyncedClipIds(app, settings.inboxFolder);
+	if (existingIds.has(clipId)) {
+		addSyncedClipId(settings, clipId);
+		await saveSettings();
+		return false;
+	}
+
+	const clip = await fetchClipById(settings, clipId);
+	const userPlan = await fetchUserPlan(settings);
+
+	await ensureFolder(app, settings.inboxFolder);
+
+	const markdown = formatClipToMarkdown(clip, settings);
+	const targetFolder = userPlan === "pro" && clip.folderPath
+		? clip.folderPath
+		: settings.inboxFolder;
+	await ensureFolder(app, targetFolder);
+	const baseName = applyFileNameTemplate(
+		settings.fileNameTemplate,
+		clip,
+		settings.timezone,
+		userPlan,
+	);
+	const filePath = await resolveFilePath(app, targetFolder, baseName);
+
+	await app.vault.create(filePath, markdown);
+	await markClipSynced(settings, clip.id);
+
+	addSyncedClipId(settings, clipId);
+	await saveSettings();
+
+	return true;
 }

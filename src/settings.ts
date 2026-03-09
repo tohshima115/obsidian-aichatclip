@@ -1,4 +1,4 @@
-import { type App, Notice, PluginSettingTab, Setting, requestUrl } from "obsidian";
+import { type App, Notice, Platform, PluginSettingTab, Setting, requestUrl } from "obsidian";
 import { scanFolders, syncFoldersToApi } from "./folders";
 import type AIChatClipPlugin from "./main";
 import { WEB_URL } from "./types";
@@ -78,6 +78,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 			authSetting.setDesc("Connected");
 			authSetting.addButton((button) =>
 				button.setButtonText("Sign out").onClick(async () => {
+					this.plugin.syncWs?.disconnect();
 					this.plugin.settings.token = "";
 					await this.plugin.saveSettings();
 					this.display();
@@ -90,6 +91,41 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 					window.open(`${WEB_URL}/auth/obsidian`);
 				}),
 			);
+		}
+
+		// WebSocket status (desktop only)
+		if (this.plugin.settings.token && Platform.isDesktop) {
+			const wsStatus = this.plugin.wsConnected ? "Connected" : "Disconnected";
+			new Setting(el)
+				.setName("Real-time sync")
+				.setDesc(`Status: ${wsStatus}`);
+		}
+
+		// Device settings
+		if (this.plugin.settings.token) {
+			new Setting(el)
+				.setName("Set as primary device")
+				.setDesc("The primary device has highest priority for real-time push notifications")
+				.addButton((button) =>
+					button.setButtonText("Make primary").onClick(async () => {
+						try {
+							await requestUrl({
+								url: `${this.plugin.settings.apiBaseUrl}/api/devices/${this.plugin.settings.deviceId}/primary`,
+								method: "PATCH",
+								headers: {
+									Authorization: `Bearer ${this.plugin.settings.token}`,
+									"Content-Type": "application/json",
+								},
+							});
+							new Notice("AIChatClip: This device is now primary");
+							if (Platform.isDesktop) {
+								this.plugin.connectWebSocket();
+							}
+						} catch {
+							new Notice("AIChatClip: Failed to set primary device");
+						}
+					}),
+				);
 		}
 
 		new Setting(el)
@@ -145,22 +181,25 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		new Setting(el)
-			.setName("Sync interval (minutes)")
-			.setDesc("Periodically sync clips (0 = disabled)")
-			.addText((text) =>
-				text
-					.setPlaceholder("0")
-					.setValue(String(this.plugin.settings.syncIntervalMinutes))
-					.onChange(async (value) => {
-						const num = Number.parseInt(value, 10);
-						if (!Number.isNaN(num) && num >= 0) {
-							this.plugin.settings.syncIntervalMinutes = num;
-							await this.plugin.saveSettings();
-							this.plugin.restartSyncInterval();
-						}
-					}),
-			);
+		// Show sync interval only on mobile (desktop uses WebSocket)
+		if (Platform.isMobile) {
+			new Setting(el)
+				.setName("Sync interval (minutes)")
+				.setDesc("Periodically sync clips (0 = disabled)")
+				.addText((text) =>
+					text
+						.setPlaceholder("0")
+						.setValue(String(this.plugin.settings.syncIntervalMinutes))
+						.onChange(async (value) => {
+							const num = Number.parseInt(value, 10);
+							if (!Number.isNaN(num) && num >= 0) {
+								this.plugin.settings.syncIntervalMinutes = num;
+								await this.plugin.saveSettings();
+								this.plugin.restartSyncInterval();
+							}
+						}),
+				);
+		}
 	}
 
 	private renderProTab(el: HTMLElement): void {
