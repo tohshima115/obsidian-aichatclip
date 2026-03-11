@@ -366,7 +366,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 		// Separator
 		el.createEl("hr", { cls: "aichatclip-separator" });
 
-		el.createEl("h3", { text: t("pro.aiCustomization", l) });
+		new Setting(el).setName(t("pro.aiCustomization", l)).setHeading();
 
 		new Setting(el)
 			.setName(t("pro.titleLang.name", l))
@@ -406,7 +406,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 	private renderGuideTab(el: HTMLElement): void {
 		const l = this.lang;
 
-		el.createEl("h3", { text: t("guide.title", l), cls: "aichatclip-guide-title" });
+		new Setting(el).setName(t("guide.title", l)).setHeading();
 
 		const steps = el.createDiv({ cls: "aichatclip-guide-steps" });
 
