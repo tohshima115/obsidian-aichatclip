@@ -1,9 +1,10 @@
-import { type App, requestUrl } from "obsidian";
+/** Clip synchronization — fetches pending clips from the API and writes them to the vault */
+import type { App } from "obsidian";
+import { apiGet, apiPatch, apiPut } from "./api";
 import { scanFolders, syncFoldersToApi } from "./folders";
 import { formatClipToMarkdown, formatLocalDate } from "./formatter";
 import type { AIChatClipSettings, Clip, UserPlan } from "./types";
-
-const SYNCED_CLIP_IDS_MAX = 1000;
+import { SYNCED_CLIP_IDS_MAX } from "./types";
 
 export interface SyncResult {
 	synced: number;
@@ -13,26 +14,16 @@ export interface SyncResult {
 }
 
 async function fetchPendingClips(settings: AIChatClipSettings): Promise<Clip[]> {
-	const res = await requestUrl({
-		url: `${settings.apiBaseUrl}/api/clips/pending`,
-		method: "GET",
-		headers: { Authorization: `Bearer ${settings.token}` },
-	});
-
+	const res = await apiGet(settings, "/api/clips/pending");
 	if (res.status !== 200) {
 		throw new Error(`Failed to fetch pending clips: ${res.status}`);
 	}
-
 	return res.json as Clip[];
 }
 
 async function fetchUserPlan(settings: AIChatClipSettings): Promise<UserPlan> {
 	try {
-		const res = await requestUrl({
-			url: `${settings.apiBaseUrl}/api/me`,
-			method: "GET",
-			headers: { Authorization: `Bearer ${settings.token}` },
-		});
+		const res = await apiGet(settings, "/api/me");
 		if (res.status === 200) {
 			const data = res.json as { user?: { plan?: string } };
 			return (data.user?.plan === "pro" ? "pro" : "free") as UserPlan;
@@ -44,16 +35,9 @@ async function fetchUserPlan(settings: AIChatClipSettings): Promise<UserPlan> {
 }
 
 async function markClipSynced(settings: AIChatClipSettings, clipId: string): Promise<void> {
-	const res = await requestUrl({
-		url: `${settings.apiBaseUrl}/api/clips/${clipId}/sync`,
-		method: "PATCH",
-		headers: {
-			Authorization: `Bearer ${settings.token}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({ syncedAt: new Date().toISOString() }),
+	const res = await apiPatch(settings, `/api/clips/${clipId}/sync`, {
+		syncedAt: new Date().toISOString(),
 	});
-
 	if (res.status !== 200) {
 		throw new Error(`Failed to mark clip ${clipId} as synced: ${res.status}`);
 	}
@@ -144,6 +128,22 @@ async function resolveFilePath(
 	return candidate;
 }
 
+async function writeClipToVault(
+	app: App,
+	settings: AIChatClipSettings,
+	clip: Clip,
+	userPlan: UserPlan,
+): Promise<void> {
+	const targetFolder = userPlan === "pro" && clip.folderPath
+		? clip.folderPath
+		: settings.inboxFolder;
+	await ensureFolder(app, targetFolder);
+	const markdown = formatClipToMarkdown(clip, settings);
+	const baseName = applyFileNameTemplate(settings.fileNameTemplate, clip, settings.timezone, userPlan);
+	const filePath = await resolveFilePath(app, targetFolder, baseName);
+	await app.vault.create(filePath, markdown);
+}
+
 async function syncTagRule(app: App, settings: AIChatClipSettings): Promise<void> {
 	if (!settings.tagRulePath || !settings.token) return;
 	try {
@@ -155,15 +155,7 @@ async function syncTagRule(app: App, settings: AIChatClipSettings): Promise<void
 		if (!mdFile) return;
 
 		const content = await app.vault.read(mdFile);
-		await requestUrl({
-			url: `${settings.apiBaseUrl}/api/preferences`,
-			method: "PUT",
-			headers: {
-				Authorization: `Bearer ${settings.token}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ tagRule: content }),
-		});
+		await apiPut(settings, "/api/preferences", { tagRule: content });
 	} catch {
 		console.warn("AIChatClip: TagRule sync failed");
 	}
@@ -172,24 +164,24 @@ async function syncTagRule(app: App, settings: AIChatClipSettings): Promise<void
 export async function syncClips(app: App, settings: AIChatClipSettings): Promise<SyncResult> {
 	const result: SyncResult = { synced: 0, failed: 0, errors: [], userPlan: "free" };
 
-	// Sync vault folder structure to API for AI categorization
-	if (settings.autoScanFolders) {
-		try {
-			const folders = await scanFolders(app, settings.scanRoot, settings.markerFilename);
-			await syncFoldersToApi(settings, folders);
-		} catch (e) {
-			console.warn("AIChatClip: folder sync failed, continuing with clip sync", e);
-		}
-	}
-
-	// Sync TagRule.md to API if exists
-	await syncTagRule(app, settings);
-
 	const [clips, userPlan] = await Promise.all([
 		fetchPendingClips(settings),
 		fetchUserPlan(settings),
 	]);
 	result.userPlan = userPlan;
+
+	// Pro-only: sync vault folder structure and tag rules to API
+	if (userPlan === "pro") {
+		if (settings.autoScanFolders) {
+			try {
+				const folders = await scanFolders(app, settings.scanRoot, settings.markerFilename);
+				await syncFoldersToApi(settings, folders);
+			} catch (e) {
+				console.warn("AIChatClip: folder sync failed, continuing with clip sync", e);
+			}
+		}
+		await syncTagRule(app, settings);
+	}
 	if (clips.length === 0) return result;
 
 	await ensureFolder(app, settings.inboxFolder);
@@ -206,20 +198,7 @@ export async function syncClips(app: App, settings: AIChatClipSettings): Promise
 				continue;
 			}
 
-			const markdown = formatClipToMarkdown(clip, settings);
-			const targetFolder = userPlan === "pro" && clip.folderPath
-				? clip.folderPath
-				: settings.inboxFolder;
-			await ensureFolder(app, targetFolder);
-			const baseName = applyFileNameTemplate(
-				settings.fileNameTemplate,
-				clip,
-				settings.timezone,
-				userPlan,
-			);
-			const filePath = await resolveFilePath(app, targetFolder, baseName);
-
-			await app.vault.create(filePath, markdown);
+			await writeClipToVault(app, settings, clip, userPlan);
 
 			await markClipSynced(settings, clip.id);
 			result.synced++;
@@ -233,16 +212,10 @@ export async function syncClips(app: App, settings: AIChatClipSettings): Promise
 }
 
 async function fetchClipById(settings: AIChatClipSettings, clipId: string): Promise<Clip> {
-	const res = await requestUrl({
-		url: `${settings.apiBaseUrl}/api/clips/${clipId}`,
-		method: "GET",
-		headers: { Authorization: `Bearer ${settings.token}` },
-	});
-
+	const res = await apiGet(settings, `/api/clips/${clipId}`);
 	if (res.status !== 200) {
 		throw new Error(`Failed to fetch clip ${clipId}: ${res.status}`);
 	}
-
 	return res.json as Clip;
 }
 
@@ -275,21 +248,7 @@ export async function syncSingleClip(
 	settings.cachedUserPlan = userPlan;
 
 	await ensureFolder(app, settings.inboxFolder);
-
-	const markdown = formatClipToMarkdown(clip, settings);
-	const targetFolder = userPlan === "pro" && clip.folderPath
-		? clip.folderPath
-		: settings.inboxFolder;
-	await ensureFolder(app, targetFolder);
-	const baseName = applyFileNameTemplate(
-		settings.fileNameTemplate,
-		clip,
-		settings.timezone,
-		userPlan,
-	);
-	const filePath = await resolveFilePath(app, targetFolder, baseName);
-
-	await app.vault.create(filePath, markdown);
+	await writeClipToVault(app, settings, clip, userPlan);
 	await markClipSynced(settings, clip.id);
 
 	addSyncedClipId(settings, clipId);

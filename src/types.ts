@@ -1,3 +1,5 @@
+/** Shared types, constants, and default settings */
+
 export const API_BASE_URL = "https://api.aichatclip.com";
 export const WEB_URL = "https://aichatclip.com";
 
@@ -22,6 +24,8 @@ export interface Clip {
 }
 
 export type UserPlan = "free" | "pro";
+
+export const SYNCED_CLIP_IDS_MAX = 1000;
 
 export interface AIChatClipSettings {
 	apiBaseUrl: string;

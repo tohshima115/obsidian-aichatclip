@@ -21,14 +21,19 @@
 
 .aichatclip-tab-button {
 	background: transparent;
-	border: none;
-	border-bottom: 2px solid transparent;
+	border: 1px solid var(--text-faint);
+	box-shadow: none !important;
 	padding: 8px 16px;
 	cursor: pointer;
 	color: var(--text-muted);
 	font-size: var(--font-ui-medium);
-	font-weight: var(--font-medium);
+	font-weight: var(--font-normal);
 	margin-bottom: -1px;
+	border-radius: 4px 4px 0 0;
+}
+
+.aichatclip-tab-button + .aichatclip-tab-button {
+	border-left: none;
 }
 
 .aichatclip-tab-button:hover {
@@ -37,7 +42,8 @@
 
 .aichatclip-tab-button.is-active {
 	color: var(--text-normal);
-	border-bottom-color: var(--interactive-accent);
+	font-weight: var(--font-semibold);
+	border-bottom: 3px solid var(--interactive-accent);
 }
 
 .aichatclip-tab-content {
@@ -176,17 +182,19 @@
 }
 
 .aichatclip-guide-step-content {
-	list-style: none;
-	padding-left: 0;
+	margin: 0;
+	padding: 0;
 }
 
 .aichatclip-guide-step-content h4 {
 	margin: 0 0 4px 0;
+	padding: 0;
 	font-size: var(--font-ui-medium);
 }
 
 .aichatclip-guide-step-content p {
 	margin: 0;
+	padding: 0;
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
 }

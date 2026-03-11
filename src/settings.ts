@@ -1,4 +1,6 @@
-import { type App, Notice, Platform, PluginSettingTab, Setting, requestUrl } from "obsidian";
+/** Settings UI — renders the plugin settings panel with Basic / Pro / Guide tabs */
+import { type App, Notice, Platform, PluginSettingTab, Setting } from "obsidian";
+import { apiGet, apiPatch, apiPut } from "./api";
 import { scanFolders, syncFoldersToApi } from "./folders";
 import { type PluginLang, detectLang, t, tReplace } from "./i18n";
 import type AIChatClipPlugin from "./main";
@@ -155,14 +157,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 				.addButton((button) =>
 					button.setButtonText(t("device.makePrimary", l)).onClick(async () => {
 						try {
-							await requestUrl({
-								url: `${this.plugin.settings.apiBaseUrl}/api/devices/${this.plugin.settings.deviceId}/primary`,
-								method: "PATCH",
-								headers: {
-									Authorization: `Bearer ${this.plugin.settings.token}`,
-									"Content-Type": "application/json",
-								},
-							});
+							await apiPatch(this.plugin.settings, `/api/devices/${this.plugin.settings.deviceId}/primary`);
 							new Notice(`AIChatClip: ${t("notice.primarySet", l)}`);
 							if (Platform.isDesktop) {
 								this.plugin.connectWebSocket();
@@ -284,9 +279,18 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 			el.createEl("hr", { cls: "aichatclip-separator" });
 		}
 
+		// Hide Pro settings for free users — show only comparison table + CTA
+		if (!isPro) return;
+
 		el.createEl("p", {
 			text: t("pro.folderDesc", l),
 			cls: "setting-item-description",
+		});
+
+		const docsLinkEl = el.createEl("p", { cls: "setting-item-description" });
+		docsLinkEl.createEl("a", {
+			text: t("pro.folderDocsLink", l),
+			href: `${WEB_URL}/docs/marker-files`,
 		});
 
 		new Setting(el)
@@ -426,11 +430,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 	private async loadLanguageSetting(dropdown: import("obsidian").DropdownComponent): Promise<void> {
 		if (!this.plugin.settings.token) return;
 		try {
-			const res = await requestUrl({
-				url: `${this.plugin.settings.apiBaseUrl}/api/preferences`,
-				method: "GET",
-				headers: { Authorization: `Bearer ${this.plugin.settings.token}` },
-			});
+			const res = await apiGet(this.plugin.settings, "/api/preferences");
 			if (res.status === 200) {
 				const data = res.json as { fileNameLanguage?: string };
 				if (data.fileNameLanguage) {
@@ -449,15 +449,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 			return;
 		}
 		try {
-			await requestUrl({
-				url: `${this.plugin.settings.apiBaseUrl}/api/preferences`,
-				method: "PUT",
-				headers: {
-					Authorization: `Bearer ${this.plugin.settings.token}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(body),
-			});
+			await apiPut(this.plugin.settings, "/api/preferences", body);
 		} catch {
 			new Notice(`AIChatClip: ${t("notice.prefFailed", l)}`);
 		}

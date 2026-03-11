@@ -1,3 +1,4 @@
+/** Internationalization — UI string translations for en, ja, zh, ko */
 export type PluginLang = "en" | "ja" | "zh" | "ko";
 
 const translations: Record<string, Record<PluginLang, string>> = {
@@ -124,10 +125,16 @@ const translations: Record<string, Record<PluginLang, string>> = {
 
 	// Pro tab - folder settings
 	"pro.folderDesc": {
-		en: "Place marker files (e.g. README.md) in folders to help AI categorize your clips.",
-		ja: "フォルダにマーカーファイル（例: README.md）を配置して、AIがクリップを自動分類できるようにします。",
-		zh: "在文件夹中放置标记文件（如 README.md）以帮助AI对剪辑进行分类。",
-		ko: "폴더에 마커 파일(예: README.md)을 배치하여 AI가 클립을 분류할 수 있도록 합니다.",
+		en: "AIChatClip detects marker files in your folders and uses them for auto-classification. Only folders with a marker file are eligible — folders without one are never used. You can choose any filename (default: README), but it must be the same across your entire vault. The content is freeform — describing the folder's purpose improves accuracy.",
+		ja: "マーカーファイルを検知して自動分類に使います。マーカーファイルがあるフォルダだけが振り分け先になり、ないフォルダには振り分けられません。ファイル名は自由に決められますが（デフォルト: README）、Vault全体で統一する必要があります。内容は自由ですが、フォルダの用途を書くと分類精度が上がります。",
+		zh: "AIChatClip 检测文件夹中的标记文件并用于自动分类。只有包含标记文件的文件夹才会被使用——没有标记文件的文件夹不会被分配。文件名可以自由选择（默认: README），但必须在整个库中统一。内容可以是任意文本——描述文件夹用途可以提高准确度。",
+		ko: "AIChatClip은 폴더의 마커 파일을 감지하여 자동 분류에 사용합니다. 마커 파일이 있는 폴더만 대상이 되며, 없는 폴더에는 배치되지 않습니다. 파일명은 자유롭게 정할 수 있지만(기본: README), 볼트 전체에서 통일해야 합니다. 내용은 자유롭지만, 폴더의 용도를 적으면 분류 정확도가 향상됩니다.",
+	},
+	"pro.folderDocsLink": {
+		en: "Learn more about marker files →",
+		ja: "マーカーファイルについて詳しく →",
+		zh: "了解更多关于标记文件 →",
+		ko: "마커 파일에 대해 자세히 →",
 	},
 	"pro.autoScan.name": {
 		en: "Auto-scan folders on sync",

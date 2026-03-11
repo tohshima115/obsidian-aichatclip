@@ -1,4 +1,6 @@
-import { type App, TFile, requestUrl } from "obsidian";
+/** Vault folder scanning and server synchronization for smart folder placement */
+import type { App } from "obsidian";
+import { apiPut } from "./api";
 import type { AIChatClipSettings } from "./types";
 
 interface FolderEntry {
@@ -46,16 +48,7 @@ export async function syncFoldersToApi(
 	settings: AIChatClipSettings,
 	folders: FolderEntry[],
 ): Promise<void> {
-	const res = await requestUrl({
-		url: `${settings.apiBaseUrl}/api/folders`,
-		method: "PUT",
-		headers: {
-			Authorization: `Bearer ${settings.token}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({ folders }),
-	});
-
+	const res = await apiPut(settings, "/api/folders", { folders });
 	if (res.status !== 200) {
 		throw new Error(`Failed to sync folders: ${res.status}`);
 	}

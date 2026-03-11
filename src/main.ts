@@ -1,4 +1,6 @@
+/** Plugin entry point — registers commands, ribbon icon, and lifecycle hooks */
 import { addIcon, Notice, Platform, Plugin } from "obsidian";
+import { registerDevice } from "./api";
 import { type PluginLang, detectLang, t, tReplace } from "./i18n";
 import { AIChatClipSettingTab } from "./settings";
 import { syncClips, syncSingleClip } from "./sync";
@@ -53,7 +55,7 @@ export default class AIChatClipPlugin extends Plugin {
 
 		this.app.workspace.onLayoutReady(async () => {
 			if (this.settings.token) {
-				await this.registerDevice();
+				await registerDevice(this.settings);
 
 				if (this.settings.autoSyncOnLoad) {
 					this.performSync();
@@ -124,7 +126,7 @@ export default class AIChatClipPlugin extends Plugin {
 		await this.saveSettings();
 		// Delay to ensure Obsidian has regained focus before showing UI updates
 		setTimeout(async () => {
-			await this.registerDevice();
+			await registerDevice(this.settings);
 			this.settingTab?.display();
 			new Notice(`AIChatClip: ${t("notice.connected", this.lang)}`);
 			this.performSync();
@@ -133,27 +135,6 @@ export default class AIChatClipPlugin extends Plugin {
 				this.connectWebSocket();
 			}
 		}, 500);
-	}
-
-	private async registerDevice(): Promise<void> {
-		if (!this.settings.token || !this.settings.deviceId) return;
-		try {
-			const { requestUrl } = await import("obsidian");
-			await requestUrl({
-				url: `${this.settings.apiBaseUrl}/api/devices`,
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.settings.token}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					deviceId: this.settings.deviceId,
-					deviceName: Platform.isDesktop ? "Obsidian Desktop" : "Obsidian Mobile",
-				}),
-			});
-		} catch (e) {
-			console.warn("AIChatClip: device registration failed", e);
-		}
 	}
 
 	connectWebSocket(): void {

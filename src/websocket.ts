@@ -1,3 +1,4 @@
+/** WebSocket client for real-time clip push notifications (desktop only) */
 export interface SyncWebSocketOptions {
 	apiBaseUrl: string;
 	token: string;

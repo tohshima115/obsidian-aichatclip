@@ -1,3 +1,4 @@
+/** Markdown formatting — converts Clip data into Obsidian-ready markdown with YAML frontmatter */
 import type { AIChatClipSettings, Clip } from "./types";
 
 function escapeYaml(value: string): string {
@@ -66,8 +67,4 @@ export function formatClipToMarkdown(clip: Clip, settings: AIChatClipSettings): 
 	lines.push("");
 
 	return lines.join("\n");
-}
-
-export function extractDatePrefix(isoString: string): string {
-	return isoString.slice(0, 10);
 }
