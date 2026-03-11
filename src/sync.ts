@@ -55,7 +55,7 @@ async function ensureFolder(app: App, folderPath: string): Promise<void> {
 	}
 }
 
-async function getExistingSyncedClipIds(app: App, folderPath: string): Promise<Set<string>> {
+function getExistingSyncedClipIds(app: App, folderPath: string): Set<string> {
 	const ids = new Set<string>();
 	const folder = app.vault.getAbstractFileByPath(folderPath);
 	if (!folder) return ids;
@@ -112,11 +112,11 @@ export function applyFileNameTemplate(
 	return result;
 }
 
-async function resolveFilePath(
+function resolveFilePath(
 	app: App,
 	targetFolder: string,
 	baseName: string,
-): Promise<string> {
+): string {
 	let candidate = `${targetFolder}/${baseName}.md`;
 	let counter = 2;
 
@@ -140,7 +140,7 @@ async function writeClipToVault(
 	await ensureFolder(app, targetFolder);
 	const markdown = formatClipToMarkdown(clip, settings);
 	const baseName = applyFileNameTemplate(settings.fileNameTemplate, clip, settings.timezone, userPlan);
-	const filePath = await resolveFilePath(app, targetFolder, baseName);
+	const filePath = resolveFilePath(app, targetFolder, baseName);
 	await app.vault.create(filePath, markdown);
 }
 
@@ -186,7 +186,7 @@ export async function syncClips(app: App, settings: AIChatClipSettings): Promise
 
 	await ensureFolder(app, settings.inboxFolder);
 
-	const existingIds = await getExistingSyncedClipIds(app, settings.inboxFolder);
+	const existingIds = getExistingSyncedClipIds(app, settings.inboxFolder);
 
 	const syncedSet = new Set(settings.syncedClipIds);
 
@@ -236,7 +236,7 @@ export async function syncSingleClip(
 	// Idempotency: skip if already synced
 	if (settings.syncedClipIds.includes(clipId)) return false;
 
-	const existingIds = await getExistingSyncedClipIds(app, settings.inboxFolder);
+	const existingIds = getExistingSyncedClipIds(app, settings.inboxFolder);
 	if (existingIds.has(clipId)) {
 		addSyncedClipId(settings, clipId);
 		await saveSettings();

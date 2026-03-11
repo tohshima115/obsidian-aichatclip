@@ -2,7 +2,7 @@
 import type { AIChatClipSettings, Clip } from "./types";
 
 function escapeYaml(value: string): string {
-	if (/[:#\[\]{}&*!|>'"%@`,?]/.test(value) || value.trim() !== value) {
+	if (/[:#[{}&*!|>'"%@`,?\]]/.test(value) || value.trim() !== value) {
 		return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 	}
 	return value;

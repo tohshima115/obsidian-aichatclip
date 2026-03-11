@@ -36,12 +36,12 @@ export default class AIChatClipPlugin extends Plugin {
 		}
 
 		addIcon("aichatclip-logo", LOGO_ICON);
-		this.addRibbonIcon("aichatclip-logo", "Sync AIChatClip", () => this.performSync());
+		this.addRibbonIcon("aichatclip-logo", "Sync AIChatClip", () => { void this.performSync(); });
 
 		this.addCommand({
 			id: "sync",
 			name: "Sync clips",
-			callback: () => this.performSync(),
+			callback: () => { void this.performSync(); },
 		});
 
 		this.settingTab = new AIChatClipSettingTab(this.app, this);
@@ -58,7 +58,7 @@ export default class AIChatClipPlugin extends Plugin {
 				await registerDevice(this.settings);
 
 				if (this.settings.autoSyncOnLoad) {
-					this.performSync();
+					void this.performSync();
 				}
 
 				if (Platform.isDesktop) {
@@ -125,15 +125,17 @@ export default class AIChatClipPlugin extends Plugin {
 		this.settings.token = token;
 		await this.saveSettings();
 		// Delay to ensure Obsidian has regained focus before showing UI updates
-		setTimeout(async () => {
-			await registerDevice(this.settings);
-			this.settingTab?.display();
-			new Notice(`AIChatClip: ${t("notice.connected", this.lang)}`);
-			this.performSync();
+		setTimeout(() => {
+			void (async () => {
+				await registerDevice(this.settings);
+				this.settingTab?.display();
+				new Notice(`AIChatClip: ${t("notice.connected", this.lang)}`);
+				void this.performSync();
 
-			if (Platform.isDesktop) {
-				this.connectWebSocket();
-			}
+				if (Platform.isDesktop) {
+					this.connectWebSocket();
+				}
+			})();
 		}, 500);
 	}
 
@@ -146,7 +148,7 @@ export default class AIChatClipPlugin extends Plugin {
 			apiBaseUrl: this.settings.apiBaseUrl,
 			token: this.settings.token,
 			deviceId: this.settings.deviceId,
-			onNewClip: (clipId) => this.handlePushNotification(clipId),
+			onNewClip: (clipId) => { void this.handlePushNotification(clipId); },
 			onStatusChange: (connected) => {
 				this.wsConnected = connected;
 				this.settingTab?.display();
@@ -186,7 +188,7 @@ export default class AIChatClipPlugin extends Plugin {
 
 	private onVisibilityChange = (): void => {
 		if (document.visibilityState === "visible" && this.settings.syncOnForeground) {
-			this.performSync();
+			void this.performSync();
 		}
 	};
 }

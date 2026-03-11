@@ -35,7 +35,7 @@ const translations: Record<string, Record<PluginLang, string>> = {
 	"device.makePrimary": { en: "Make primary", ja: "プライマリに設定", zh: "设为主设备", ko: "기본으로 설정" },
 
 	// Inbox folder
-	"inbox.name": { en: "Inbox Folder", ja: "受信フォルダ", zh: "收件箱文件夹", ko: "받은 편지함 폴더" },
+	"inbox.name": { en: "Inbox folder", ja: "受信フォルダ", zh: "收件箱文件夹", ko: "받은 편지함 폴더" },
 	"inbox.desc": {
 		en: "Vault folder where clipped notes are saved",
 		ja: "クリップしたノートの保存先フォルダ",
@@ -115,7 +115,7 @@ const translations: Record<string, Record<PluginLang, string>> = {
 		zh: "智能文件夹分配",
 		ko: "스마트 폴더 배치",
 	},
-	"pro.feature.weeklyDigest": { en: "Weekly Digest", ja: "週間ダイジェスト", zh: "每周摘要", ko: "주간 다이제스트" },
+	"pro.feature.weeklyDigest": { en: "Weekly digest", ja: "週間ダイジェスト", zh: "每周摘要", ko: "주간 다이제스트" },
 	"pro.cta.upgrade": {
 		en: "Upgrade to Pro →",
 		ja: "Proプランにアップグレード →",
@@ -170,7 +170,7 @@ const translations: Record<string, Record<PluginLang, string>> = {
 		zh: "扫描标记文件并将文件夹结构上传到服务器",
 		ko: "마커 파일을 스캔하고 폴더 구조를 서버에 업로드",
 	},
-	"pro.scanNow.button": { en: "Scan & Upload", ja: "スキャン＆アップロード", zh: "扫描并上传", ko: "스캔 및 업로드" },
+	"pro.scanNow.button": { en: "Scan & upload", ja: "スキャン＆アップロード", zh: "扫描并上传", ko: "스캔 및 업로드" },
 	"pro.readme.name": { en: "Marker file template", ja: "マーカーファイルテンプレート", zh: "标记文件模板", ko: "마커 파일 템플릿" },
 	"pro.readme.desc": {
 		en: "Copy a starter template for folder marker files",
@@ -181,7 +181,7 @@ const translations: Record<string, Record<PluginLang, string>> = {
 	"pro.readme.button": { en: "Copy to clipboard", ja: "クリップボードにコピー", zh: "复制到剪贴板", ko: "클립보드에 복사" },
 
 	// AI Customization
-	"pro.aiCustomization": { en: "AI Customization", ja: "AIカスタマイズ", zh: "AI自定义", ko: "AI 커스터마이징" },
+	"pro.aiCustomization": { en: "AI customization", ja: "AIカスタマイズ", zh: "AI自定义", ko: "AI 커스터마이징" },
 	"pro.titleLang.name": { en: "Title language", ja: "タイトル言語", zh: "标题语言", ko: "제목 언어" },
 	"pro.titleLang.desc": {
 		en: "Language for AI-generated titles (saved to server)",
@@ -255,7 +255,7 @@ const translations: Record<string, Record<PluginLang, string>> = {
 	},
 
 	// Guide tab
-	"guide.title": { en: "Getting Started", ja: "はじめに", zh: "入门指南", ko: "시작하기" },
+	"guide.title": { en: "Getting started", ja: "はじめに", zh: "入门指南", ko: "시작하기" },
 	"guide.step1.title": { en: "Install browser extension", ja: "ブラウザ拡張をインストール", zh: "安装浏览器扩展", ko: "브라우저 확장 설치" },
 	"guide.step1.desc": {
 		en: "Install the AIChatClip extension for Chrome or Firefox.",
@@ -295,12 +295,10 @@ export function tReplace(key: string, lang: PluginLang, replacements: Record<str
 	return result;
 }
 
+declare const moment: { locale: () => string } | undefined;
+
 export function detectLang(): PluginLang {
-	const locale =
-		localStorage.getItem("language") ??
-		(window as any).moment?.locale?.() ??
-		navigator.language ??
-		"en";
+	const locale = moment?.locale?.() ?? navigator.language ?? "en";
 	const code = locale.split("-")[0].toLowerCase();
 	if (["en", "ja", "zh", "ko"].includes(code)) return code as PluginLang;
 	return "en";

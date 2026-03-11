@@ -249,8 +249,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 			const headRow = thead.createEl("tr");
 			headRow.createEl("th", { text: "" });
 			headRow.createEl("th", { text: "Free" });
-			const proTh = headRow.createEl("th", { text: "Pro " });
-			proTh.createSpan({ text: "$3/mo", cls: "aichatclip-pro-badge" });
+			headRow.createEl("th", { text: "Pro" });
 
 			const tbody = table.createEl("tbody");
 			const features: [string, boolean, boolean][] = [
@@ -415,7 +414,7 @@ export class AIChatClipSettingTab extends PluginSettingTab {
 			const num = step.createDiv({ cls: "aichatclip-guide-step-num" });
 			num.setText(String(i));
 			const content = step.createDiv({ cls: "aichatclip-guide-step-content" });
-			content.createEl("h4", { text: t(`guide.step${i}.title`, l) });
+			new Setting(content).setName(t(`guide.step${i}.title`, l)).setHeading();
 			content.createEl("p", { text: t(`guide.step${i}.desc`, l) });
 		}
 
