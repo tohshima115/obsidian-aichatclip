@@ -3,7 +3,7 @@
 	"name": "AIChatClip",
 	"version": "1.0.0",
 	"minAppVersion": "1.0.0",
-	"description": "Sync AI chat clips to your Obsidian vault",
+	"description": "Sync AI chat clips to your vault.",
 	"author": "tohshima",
 	"authorUrl": "https://aichatclip.com",
 	"isDesktopOnly": false
